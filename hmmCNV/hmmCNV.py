@@ -80,7 +80,7 @@ def hmmCNV(tumour_copy, normal = [0.2, 0.5, 0.75], ploidy = [1, 2, 3], scStates 
     gender_mismatch = False
 
     i = 0
-    gender = {"gender":"male", "chrYCovRatio":0.002754108, "chrXMedian":-1.040045}
+    #gender = {"gender":"male", "chrYCovRatio":0.002754108, "chrXMedian":-1.040045}
 
     chrInd = np.in1d(tumour_copy[sample_id].loc[:,"seqnames"].values, chrTrain)
 
@@ -191,4 +191,4 @@ def hmmCNV(tumour_copy, normal = [0.2, 0.5, 0.75], ploidy = [1, 2, 3], scStates 
 
     if verbose: print("Total ULP-WGS HMM Runtime:", ((time.perf_counter() - start_time) / 60), "min.")
 
-    return loglik, hmmResults_cor
+    return loglik, results
