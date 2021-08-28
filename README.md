@@ -1,6 +1,7 @@
 # HMM copy number variation calling
 
 [![Build Status](https://travis-ci.org/kylessmith/hmmCNV.svg?branch=master)](https://travis-ci.org/kylessmith/hmmCNV) [![PyPI version](https://badge.fury.io/py/hmmCNV.svg)](https://badge.fury.io/py/hmmCNV)
+[![Coffee](https://img.shields.io/badge/-buy_me_a%C2%A0coffee-gray?logo=buy-me-a-coffee&color=ff69b4)](https://www.buymeacoffee.com/kylessmith)
 
 This is a Python package for Copy Number Variation
 detection using an HMM as implemented in [ichorCNA][code].
@@ -23,7 +24,8 @@ Dependencies can be installed by:
 
 PyPI install, presuming you have all its requirements installed:
 ```
-    pip install hmmCNV
+    NOT AVAILABLE...YET
+	pip install hmmCNV
 ```
 
 ## Usage
