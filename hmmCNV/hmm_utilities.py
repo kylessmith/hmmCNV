@@ -2,10 +2,22 @@ import numpy as np
 import pandas as pd
 from . import em_utilities
 from .hmm import viterbi
+from intervalframe import IntervalFrame
+from ailist import LabeledIntervalArray
 
 
 def getTransitionMatrix(K, e, strength):
     """
+
+
+    Parameters
+    ----------
+
+    
+    Returns
+    -------
+
+
     """
 
     A = np.zeros((K,K), order="F")
@@ -24,6 +36,15 @@ def getTransitionMatrix(K, e, strength):
 def normalize(A):
     """
     Normalize a given array to sum to 1
+
+    Parameters
+    ----------
+
+    
+    Returns
+    -------
+
+
     """
 
     def vectorNormalize(x):
@@ -37,42 +58,70 @@ def normalize(A):
     return M
 
 
-def getDefaultParameters(x, maxCN = 5, ct_sc = None, ploidy = 2, e = 0.9999999,
+def getDefaultParameters(logR, maxCN = 5, ct_sc = None, ploidy = 2, e = 0.9999999,
                          e_sameState = 10, strength = 10000000, includeHOMD = False):
     """
+    Determine default parameters
+    
+    Parameters
+    ----------
+        logR : pandas.Series
+            Log ratios
+        maxCN : int
+            Maximum Copy Numbers
+        ct_sc : int
+            
+        ploidy : int
+            Assumed ploidy
+        e : float
+            
+        e_sameState : int
+            
+        strength : int
+            (default:10000000)
+        includeHOMD : bool
+            Whether to include homozygous deletions
+        
+    Returns
+    -------
+        param : dict
+            Dictionary of HMM starting parameters
+    
     """
     
+    # Determine if HOMD is included
     if includeHOMD:
-        ct = np.arange(0,maxCN+1)
+        ct = np.arange(0, maxCN+1)
     else:
-        ct = np.arange(1,maxCN+1)
-        
+        ct = np.arange(1, maxCN+1)
+    
+    # Initialize parameters
     length_ct_sc = 0 if ct_sc is None else len(ct_sc)
     param = {"strength" : strength, "e" : e,
-    		"ct" : ct if ct_sc is None else np.append(ct,ct_sc),
+    		"ct" : ct if ct_sc is None else np.append(ct, ct_sc),
     		"ct_sc_status" : np.append(np.repeat(False, len(ct)), np.repeat(True, length_ct_sc)),
     		"phi_0" : 2, "alphaPhi" : 4, "betaPhi" : 1.5,
     		"n_0" : 0.5, "alphaN" : 2, "betaN" : 2,
     		"sp_0" : 0.5, "alphaSp" : 2, "betaSp" : 2,
-    		"lambda" : np.repeat(100, len(ct)+length_ct_sc).reshape(-1,1),
+    		"lambda" : np.repeat(100, len(ct) + length_ct_sc).reshape(-1,1),
     		"nu" : 2.1,
     		"kappa" : np.repeat(75, len(ct)), 
     		"alphaLambda" : 5}
             
     K = len(param["ct"])
     
-    ## initialize hyperparameters for precision using observed data ##
+    # Initialize hyperparameters for precision using observed data
     param["numberSamples"] = 1
-    betaLambdaVal = ((np.nanstd(x, ddof=1) / np.sqrt(len(param["ct"]))) **2)
+    betaLambdaVal = ((np.nanstd(logR, ddof=1) / np.sqrt(len(param["ct"]))) **2)
     param["betaLambda"] = np.repeat(betaLambdaVal, len(param["ct"]))
 
     param["alphaLambda"] = np.repeat(param["alphaLambda"], K)
 
     S = param["numberSamples"]
 
-    logR_var = 1 / ((np.nanstd(x, ddof=1, axis=0) / np.sqrt(len(param["ct"]))) **2)
+    logR_var = 1 / ((np.nanstd(logR, ddof=1, axis=0) / np.sqrt(len(param["ct"]))) **2)
 
-    if x.ndim == 2 and x.shape[1] > 1:
+    if logR.ndim == 2 and logR.shape[1] > 1:
         param["lambda"] = np.tile(logR_var, (K, S))
     else:
         param["lambda"] = np.repeat(logR_var, len(param["ct"]))
@@ -82,7 +131,7 @@ def getDefaultParameters(x, maxCN = 5, ct_sc = None, ploidy = 2, e = 0.9999999,
         param["lambda"][param["ct"] == np.max(param["ct"])] = logR_var / 15
         param["lambda"][param["ct_sc_status"]] = logR_var / 10
 
-    # define joint copy number states #
+    # Define joint copy number states 
     param["jointCNstates"] = pd.DataFrame(np.repeat(param["ct"], S).astype(int), columns=["Sample_1"])
     param["jointSCstatus"] = pd.DataFrame(np.repeat(param["ct_sc_status"], S), columns=["Sample_1"])
 
@@ -125,6 +174,16 @@ def getDefaultParameters(x, maxCN = 5, ct_sc = None, ploidy = 2, e = 0.9999999,
 
 def runViterbi(convergedParams, chroms):
     """
+
+
+    Parameters
+    ----------
+
+    
+    Returns
+    -------
+
+
     """
 
     print("runViterbi: Segmenting and classifying")
@@ -156,15 +215,43 @@ def runViterbi(convergedParams, chroms):
         
 
 def merge_Trues(x):
+    """
+
+
+    Parameters
+    ----------
+        x : numpy.ndarray
+    
+    Returns
+    -------
+        Generator of tuples
+
+    """
+    
+    # Merge nearby True values
     x1 = np.hstack([ [False], x, [False] ])  # padding
     d = np.diff(x1.astype(int))
     starts = np.where(d == 1)[0]
     ends = np.where(d == -1)[0]
 
-    return list(zip(starts,ends))
+    # Determine indices
+    for segment in zip(starts,ends):
+        yield segment
 
 
 def segment_data(x, states, convergedParams):
+    """
+
+
+    Parameters
+    ----------
+        x : IntervalFrame
+    
+    Returns
+    -------
+        total_segList : IntervalFrame
+
+    """
 
     if np.sum(convergedParams["param"]["ct"] == 0) == 0:
         includeHOMD = False
@@ -177,30 +264,37 @@ def segment_data(x, states, convergedParams):
         names = ["HOMD","HETD","NEUT","GAIN","AMP","HLAMP"] + ["HLAMP"+str(i) for i in range(2,25)]
     
     jointStates = convergedParams["param"]["jointCNstates"].values
-    total_segList = []
-    for j, sample in enumerate(x):
-        indexes = np.sort(np.unique(x[sample].loc[:,"seqnames"].values, return_index=True)[1])
-        chroms = x[sample].loc[:,"seqnames"].values[indexes]
-        sample_segList = []
 
-        for i in range(len(chroms)):
-            chrom = chroms[i]
-            chrom_selected = x[sample].loc[:,"seqnames"].values == chrom
-            chrom_positions = x[sample].loc[:,"start"].values[chrom_selected]
-            chrom_values = x[sample].loc[:,"ratios"].values[chrom_selected]
-            chrom_states = states[chrom_selected]
-            chrom_segList = []
-            for state in np.unique(chrom_states):
-                name = names[int(state)]
-                for start, end in merge_Trues(chrom_states==state):
-                    end = min(end, len(chrom_positions)-1)
-                    median = np.nanmedian(chrom_values[start:end])
-                    chrom_segList.append([chrom, chrom_positions[start], chrom_positions[end], int(state), name, median, jointStates[int(state),j]])
+    #indexes = np.sort(np.unique(x.labels(), return_index=True)[1])
+    chroms = x.index.unique_labels
+    sample_segList = []
+    sample_intervals = {}
 
-            chrom_segList.sort(key = lambda x: x[1])
-            sample_segList += chrom_segList
+    sample_intervals = LabeledIntervalArray()
+    for i in range(len(chroms)):
+        chrom = chroms[i]
+        #sample_intervals[chrom] = LabeledIntervalArray()
+        chrom_selected = x.loc[chrom,:]
+        chrom_positions = chrom_selected.starts()
+        chrom_values = chrom_selected.df["ratios"].values
+        chrom_states = states[x.index.get_locs([chrom])]
+        chrom_segList = []
+        for state in np.unique(chrom_states):
+            name = names[int(state)]
+            for start, end in merge_Trues(chrom_states==state):
+                end = min(end, len(chrom_positions)-1)
+                median = np.nanmedian(chrom_values[start:end])
+                #chrom_segList.append([chrom, chrom_positions[start], chrom_positions[end], int(state), name, median, jointStates[int(state),j]])
+                sample_intervals.add(chrom_positions[start], chrom_positions[end], str(chrom))
+                chrom_segList.append([int(state), name, median, jointStates[int(state)]])
 
-        total_segList.append(pd.DataFrame(sample_segList, columns=["chrom", "start", "end", "state", "event", "median", "copy_number"]))
+        #chrom_segList.sort(key = lambda x: x[1])
+        sample_segList += chrom_segList
+
+    #total_segList.append(pd.DataFrame(sample_segList, columns=["chrom", "start", "end", "state", "event", "median", "copy_number"]))
+    total_segList = IntervalFrame(sample_intervals,
+                                  pd.DataFrame(sample_segList,
+                                               columns=["state", "event", "median", "copy_number"]))
 
     return total_segList
     
@@ -210,22 +304,58 @@ def HMMsegment(x, validInd=None, dataType="ratios", param=None,
                estimatePrecision=True, estimateSubclone=True, estimateTransition=True,
                estimateInitDist=True, logTransform=False, verbose=True):
     """
+
+
+    Parameters
+    ----------
+        x : IntervalFrame
+
+        validInd : array-like
+
+        dataType : str
+
+        param : dict
+
+        chrTrain : array-like
+
+        maxiter : int
+
+        estimateNormal : bool
+
+        estimate Ploidy : bool
+
+        estimatePrecision : bool
+
+        estimateSubclone : bool
+
+        estimateTransition : bool
+
+        estimateInitDist : bool
+
+        logTransform : bool
+
+        verbose : bool
+    
+    Returns
+    -------
+        dict
+
     """
     
-    chroms = x[list(x.keys())[0]].loc[:,"seqnames"].values
+    # Find chromosomes present
+    chroms = x.index.extract_labels()
 
-    # setup columns for multiple samples #
-    dataMat = pd.DataFrame([x[s].loc[:,dataType] for s in x], index=list(x.keys())).T
+    # Setup columns
+    dataMat = x.df.loc[:,dataType].to_frame()
 
-    # normalize by median and log data #
+    # Normalize by median and log data
     if logTransform:
         dataMat = dataMat.apply(lambda x: np.log(x / np.nanmedian(x)), axis=1)
     else:
         dataMat = np.log(2**dataMat)
 
-    ## update variable x with loge instead of log2
-    for i, s in enumerate(x):
-        x[s].loc[:, dataType] = dataMat.iloc[:, i]
+    # Update variable x with loge instead of log2
+    x.df.loc[:, dataType] = dataMat.iloc[:, 0]
 
     chrInd = np.in1d(chroms, chrTrain)
     if validInd is not None:
@@ -234,6 +364,7 @@ def HMMsegment(x, validInd=None, dataType="ratios", param=None,
         param = getDefaultParameters(dataMat.loc[chrInd,:])
 
     ####### RUN EM ##########
+
     convergedParams = em_utilities.runEM(dataMat, chroms, chrInd, param, maxiter, 
                                         verbose, estimateNormal=estimateNormal, estimatePloidy=estimatePloidy, 
                                         estimateSubclone=estimateSubclone, estimatePrecision=estimatePrecision, 
@@ -241,44 +372,43 @@ def HMMsegment(x, validInd=None, dataType="ratios", param=None,
     
     viterbiResults = runViterbi(convergedParams, chroms)
 
+    # Segment data based on called states
     segs = segment_data(x, viterbiResults["states"], convergedParams)
     
     names = np.array(["HOMD","HETD","NEUT","GAIN","AMP","HLAMP"] + ["HLAMP"+str(i) for i in range(2,25)])
 
-    cnaList = {}
-    S = len(x)
+    #cnaList = {}
+    #pid = list(x.keys())[i]
+    copyNumber = param["jointCNstates"].values[viterbiResults["states"]]
+    subclone_status = param["jointSCstatus"].values[viterbiResults["states"]]
 
-    for s in range(S):
-        pid = list(x.keys())[i]
-        copyNumber = param["jointCNstates"].values[viterbiResults["states"], s]
-        subclone_status = param["jointSCstatus"].values[viterbiResults["states"], s]
+    chroms = x.index.extract_labels()
 
-        chroms = x[list(x.keys())[0]].loc[:,"seqnames"].values
-        cnaList[pid] = pd.DataFrame([np.repeat(pid, len(chroms)),
-                                     chroms], index=["sample", "chr"]).T
-        cnaList[pid].loc[:,"start"] = x[pid].loc[:,"start"].values
-        cnaList[pid].loc[:,"end"] = x[pid].loc[:,"end"].values
-        cnaList[pid].loc[:,"copy_number"] = copyNumber
-        cnaList[pid].loc[:,"event"] = names[copyNumber]
-        cnaList[pid].loc[:,"logR"] = np.log2(np.exp(dataMat.iloc[:,s].values))
-        cnaList[pid].loc[:,"subclone_status"] = subclone_status
+    #cnaList = pd.DataFrame([chroms], index=["chr"]).T
+    #cnaList.loc[:,"start"] = x.starts()
+    #cnaList.loc[:,"end"] = x.ends()
+    cnaList = IntervalFrame.from_array(x.starts(), x.ends(), labels=chroms)
+    cnaList.loc[:,"copy_number"] = copyNumber
+    cnaList.loc[:,"event"] = names[copyNumber]
+    cnaList.loc[:,"logR"] = np.log2(np.exp(dataMat.values))
+    cnaList.loc[:,"subclone_status"] = subclone_status
 
-        ## order by chromosome ##
-        indexes = np.sort(np.unique(x[pid].loc[:,"seqnames"].values, return_index=True)[1])
-        chrOrder_chroms = x[pid].loc[:,"seqnames"].values[indexes]
-        chrOrder = np.zeros(len(chroms), dtype=int)
-        shift = 0
-        for c in chrOrder_chroms:
-            selected = np.where(chroms == c)[0]
-            chrOrder[shift:shift+len(selected)] = selected
-            shift += len(selected)
+    ## order by chromosome ##
+    #indexes = np.sort(np.unique(x[pid].loc[:,"seqnames"].values, return_index=True)[1])
+    #chrOrder_chroms = x.index.unique_labels
+    #chrOrder = np.zeros(len(chroms), dtype=int)
+    #shift = 0
+    #for c in chrOrder_chroms:
+    #    selected = np.where(chroms == c)[0]
+    #    chrOrder[shift:shift+len(selected)] = selected
+    #    shift += len(selected)
 
-        cnaList[pid] = cnaList[pid].iloc[chrOrder,:]
+    #cnaList = cnaList.loc[chrOrder_chroms,:]
 
-        ## segment mean loge -> log2
-        segs[s].loc[:,"median"] = np.log2(np.exp(segs[s].loc[:,"median"].values))
-        ## add subclone status
-        segs[s].loc[:,"subclone_status"] = param["jointSCstatus"].values[segs[s].loc[:,"state"].values, s]
+    ## segment mean loge -> log2
+    segs.df["median"] = np.log2(np.exp(segs.df["median"].values))
+    ## add subclone status
+    segs.df["subclone_status"] = param["jointSCstatus"].values[segs.df["state"].values]
     
     convergedParams["segs"] = segs
 
@@ -288,6 +418,15 @@ def HMMsegment(x, validInd=None, dataType="ratios", param=None,
 def logRbasedCN(x, purity, ploidyT, cellPrev=np.nan, cn = 2):
     """
     compute copy number using corrected log ratio
+
+    Parameters
+    ----------
+
+    
+    Returns
+    -------
+
+
     """
 
     if len(cellPrev) == 1 and np.isnan(cellPrev):
@@ -312,9 +451,18 @@ def correctIntegerCN(cn, segs, purity, ploidy, cellPrev, callColName = "event", 
     """
     Recompute integer CN for high-level amplifications
     compute logR-corrected copy number
+
+    Parameters
+    ----------
+
+    
+    Returns
+    -------
+
+
     """
 
-    names = np.array(["HOMD","HETD","NEUT","GAIN","AMP","HLAMP"] + ["HLAMP"+str(i) for i in range(2,1000)] + ["NA"])
+    names = np.array(["HOMD","HETD","NEUT","GAIN","AMP","HLAMP"] + ["HLAMP"+str(i) for i in range(2,3000)] + ["NA"])
 
     ## set up chromosome style
     autosomeStr = np.array([c for c in chrs if "X" not in c and "Y" not in c])
@@ -328,7 +476,7 @@ def correctIntegerCN(cn, segs, purity, ploidy, cellPrev, callColName = "event", 
     
     ## correct log ratio and compute corrected CN
     cellPrev_seg = np.ones(segs.shape[0])
-    cellPrev_seg[segs["subclone_status"]] = cellPrev
+    cellPrev_seg[segs.df["subclone_status"]] = cellPrev
     segs.loc[:,"logR_Copy_Number"] = logRbasedCN(segs.loc[:,"median"].values, purity, ploidy, cellPrev_seg, cn=2)
     if gender == "male" and len(chrXStr) > 0: ## analyze chrX separately
         ind_cnChrX = np.where(segs.loc[:,"chrom"].values == chrXStr)[0]
@@ -345,26 +493,26 @@ def correctIntegerCN(cn, segs, purity, ploidy, cellPrev, callColName = "event", 
         # perform on all chromosomes
         ind_cn = np.where(np.logical_or(segs.loc[:,"copy_number"].values >= maxCNtoCorrect_autosomes,
                                         segs.loc[:,"logR_Copy_Number"].values >= maxCNtoCorrect_autosomes * 1.2))[0]
-        segs.loc[ind_cn,"Corrected_Copy_Number"] = np.round(segs.loc[:,"logR_Copy_Number"].values[ind_cn]).astype(int)
-        segs.loc[ind_cn,"Corrected_Call"] = names[segs.loc[:,"Corrected_Copy_Number"].values[ind_cn] + 1]
+        segs.df.loc[ind_cn,"Corrected_Copy_Number"] = np.round(segs.df.loc[:,"logR_Copy_Number"].values[ind_cn]).astype(int)
+        segs.df.loc[ind_cn,"Corrected_Call"] = names[segs.df.loc[:,"Corrected_Copy_Number"].values[ind_cn] + 1]
         ind_change = np.append(ind_change, ind_cn)
 
         # ichorCNA calls adjust for HOMD
         if correctHOMD:
-            ind_cn = np.where(np.logical_and(np.in1d(segs.loc[:,"chrom"].values, chrs),
+            ind_cn = np.where(np.logical_and(np.in1d(segs.index.extract_labels(), chrs),
                                              np.logical_or(segs.loc[:,"copy_number"].values == 0,
                                                            segs.loc[:,"logR_Copy_Number"].values == 1/2**6)))[0]
-            segs.loc[ind_cn,"Corrected_Copy_Number"] = np.round(segs.loc[:,"logR_Copy_Number"].values[ind_cn])
-            segs.loc[ind_cn,"Corrected_Call"] = names[segs.loc[:,"Corrected_Copy_Number"].vaues[ind_cn] + 1]
+            segs.df.loc[ind_cn,"Corrected_Copy_Number"] = np.round(segs.df.loc[:,"logR_Copy_Number"].values[ind_cn])
+            segs.df.loc[ind_cn,"Corrected_Call"] = names[segs.df.loc[:,"Corrected_Copy_Number"].vaues[ind_cn] + 1]
             ind_change = np.append(ind_change, ind_cn)
         
         # Re-adjust chrX copy number for males (females already handled above)
         if gender == "male" and len(chrXStr) > 0:
-            ind_cn = np.where(np.logical_and(segs["chrom"] == chrXStr,
-                                            np.logical_or(segs.loc[:,"copy_number"].values >= maxCNtoCorrect_X,
-                                                          segs.loc[:,"logR_Copy_Number"].values >= maxCNtoCorrect_X * 1.2)))[0]
-            segs.loc[ind_cn,"Corrected_Copy_Number"] = np.round(segs.loc[:,"logR_Copy_Number"].values[ind_cn]).astype(int)
-            segs.loc[ind_cn,"Corrected_Call"] = names[segs.loc[:,"Corrected_Copy_Number"].values[ind_cn] + 2]
+            ind_cn = np.where(np.logical_and(segs.index.extract_labels() == chrXStr,
+                                            np.logical_or(segs.df.loc[:,"copy_number"].values >= maxCNtoCorrect_X,
+                                                          segs.df.loc[:,"logR_Copy_Number"].values >= maxCNtoCorrect_X * 1.2)))[0]
+            segs.df.loc[ind_cn,"Corrected_Copy_Number"] = np.round(segs.df.loc[:,"logR_Copy_Number"].values[ind_cn]).astype(int)
+            segs.df.loc[ind_cn,"Corrected_Call"] = names[segs.df.loc[:,"Corrected_Copy_Number"].values[ind_cn] + 2]
             ind_change = np.append(ind_change, ind_cn)
         
     ## adjust the bin level data ##
@@ -385,21 +533,24 @@ def correctIntegerCN(cn, segs, purity, ploidy, cellPrev, callColName = "event", 
     hits = np.array([])
     for i in ind_change:
         fields = segs.iloc[i,:]
-        overlaps = np.logical_and(cn.loc[:,"chr"].values == fields.loc["chrom"],
-                                  np.logical_and(cn.loc[:,"start"].values <= fields.loc["end"],
-                                  cn.loc[:,"end"].values >= fields.loc["start"]))
-        cn.loc[overlaps,"Corrected_Copy_Number"] = fields.loc["Corrected_Copy_Number"]
-        cn.loc[overlaps,"Corrected_Call"] = fields.loc["Corrected_Call"]
+
+        overlaps = cn.index.has_hit(fields.index[0].start, fields.index[0].end, fields.index[0].label)
+        #overlaps = np.logical_and(cn.loc[:,"chr"].values == fields.loc["chrom"],
+        #                          np.logical_and(cn.loc[:,"start"].values <= fields.loc["end"],
+        #                          cn.loc[:,"end"].values >= fields.loc["start"]))
+        cn.df.loc[overlaps,"Corrected_Copy_Number"] = fields.df.loc[:,"Corrected_Copy_Number"]
+        cn.df.loc[overlaps,"Corrected_Call"] = fields.df.loc[:,"Corrected_Call"]
         hits = np.append(hits, np.where(overlaps)[0])
 
     # 4) correct bins that are missed as high level amplifications
-    ind_cn = np.where(np.logical_or(cn.loc[:,"copy_number"].values >= maxCNtoCorrect_autosomes,
-                                    cn.loc[:,"logR_Copy_Number"].values >= maxCNtoCorrect_autosomes * 1.2))[0]
+    ind_cn = np.where(np.logical_or(cn.df.loc[:,"copy_number"].values >= maxCNtoCorrect_autosomes,
+                                    cn.df.loc[:,"logR_Copy_Number"].values >= maxCNtoCorrect_autosomes * 1.2))[0]
     ind_cn = ind_cn[~np.in1d(ind_cn, hits)]
-    cn.loc[ind_cn,"Corrected_Copy_Number"] = np.round(cn.loc[:,"logR_Copy_Number"].values[ind_cn])
-    corr_copy = np.round(cn.loc[:,"logR_Copy_Number"].values[ind_cn])
+    cn.df.loc[ind_cn,"Corrected_Copy_Number"] = np.round(cn.df.loc[:,"logR_Copy_Number"].values[ind_cn])
+    corr_copy = np.round(cn.df.loc[:,"logR_Copy_Number"].values[ind_cn])
     corr_copy[pd.isnull(corr_copy)] = -2
+    corr_copy[corr_copy >= len(names)] = len(names) - 2 # scale to max label
     corr_copy = corr_copy.astype(int)
-    cn.loc[ind_cn,"Corrected_Call"] = names[corr_copy + 1]
+    cn.df.loc[ind_cn,"Corrected_Call"] = names[corr_copy + 1]
     
     return {"cn":cn, "segs":segs}

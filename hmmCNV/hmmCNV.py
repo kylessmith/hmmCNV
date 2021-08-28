@@ -3,6 +3,7 @@ import numpy as np
 import copy as cp
 from . import hmm_utilities
 import time
+from intervalframe import IntervalFrame
 
 
 def get_seq_info(genomeBuild = "hg19", genomeStyle = "NCBI"):
@@ -67,6 +68,78 @@ def hmmCNV(tumour_copy, normal = [0.2, 0.5, 0.75], ploidy = [1, 2, 3], scStates 
             chrNormalize = np.arange(1, 23).astype(str), verbose=False):
     """
     Run ichor HMM copy algorithm
+
+    Parameters
+    ----------
+        tumour_copy : IntervalFrame
+
+        normal : list of int
+
+        ploidy : list of int
+
+        scStates : 
+
+        lambda_p : float
+
+        lambdaScaleHyperParam : int
+
+        estimateNormal : bool
+
+        estimatePloidy : bool
+
+        estimateScPrevalence : bool
+
+        maxFracCNASubclone : float
+
+        maxFracGenomeSubclone : float
+
+        minSegmentBins : int
+
+        altFracThreshold : float
+
+        coverage : 
+
+        maxCN : int
+
+        txnE : float
+
+        txnStrength : float
+
+        normalizeMaleX : bool
+
+        includeHOMD : bool
+
+        fracReadsInChrYForMale : float
+
+        chrXMedianForMale : float
+
+        outDir : str
+
+        libdir : str
+
+        plotFileType : str
+
+        plotYLim : tuple
+
+        gender : dict
+
+        genomeBuild : str
+
+        genomeStyle : str
+
+        chrs : array-like
+
+        chrTrain : array-like
+
+        chrNormalize : array-like
+
+        verbose : bool
+
+    Returns
+    -------
+        loglik : pandas.DataFrame
+        
+        results : dict
     """
 
     # Manage chr's
@@ -74,22 +147,21 @@ def hmmCNV(tumour_copy, normal = [0.2, 0.5, 0.75], ploidy = [1, 2, 3], scStates 
         chrTrain = np.array(["chr"+c for c in chrTrain])
         chrs = np.array(["chr"+c for c in chrs])
 
-    numSamples = 1
-    sample_id = list(tumour_copy.keys())[0]
     normal_copy = None
     gender_mismatch = False
+    numSamples = 1
 
     i = 0
-    #gender = {"gender":"male", "chrYCovRatio":0.002754108, "chrXMedian":-1.040045}
-
-    chrInd = np.in1d(tumour_copy[sample_id].loc[:,"seqnames"].values, chrTrain)
+    # Determine which chromosomes to use for training
+    chrInd = tumour_copy.index.get_locs(chrTrain)
 
     ### RUN HMM ###
     start_time = time.perf_counter()
 
-    results = dict()
+    results = {}
     loglik = pd.DataFrame([], columns=["init", "n_est", "phi_est", "BIC", "Frac_genome_subclonal",
-                                    "Frac_CNA_subclonal", "loglik"], index=np.arange(len(normal)* len(ploidy)))
+                                    "Frac_CNA_subclonal", "loglik"],
+                          index=np.arange(len(normal)* len(ploidy)))
 
     counter = 0
     compNames = np.repeat("NA", loglik.shape[0])
@@ -98,7 +170,7 @@ def hmmCNV(tumour_copy, normal = [0.2, 0.5, 0.75], ploidy = [1, 2, 3], scStates 
     #### restart for purity and ploidy values ####
     for n in normal:
         for p in ploidy:
-            logR = tumour_copy[sample_id].loc[:,"ratios"].copy(deep=True)
+            logR = tumour_copy.df.loc[:,"ratios"].copy(deep=True)
 
             param = hmm_utilities.getDefaultParameters(logR.loc[chrInd], maxCN=maxCN, includeHOMD=includeHOMD, 
                                         ct_sc=scStates, ploidy=p, e=txnE, e_sameState=50, strength=txnStrength)
@@ -130,56 +202,54 @@ def hmmCNV(tumour_copy, normal = [0.2, 0.5, 0.75], ploidy = [1, 2, 3], scStates 
             ################ RUN HMM ####################
             #############################################
 
-            hmmResults_cor = hmm_utilities.HMMsegment(cp.deepcopy(tumour_copy), None, dataType="ratios", 
-                                        param=param, chrTrain=chrTrain, maxiter=50,
-                                        estimateNormal=estimateNormal, estimatePloidy=estimatePloidy,
-                                        estimateSubclone=estimateScPrevalence, verbose=True)
+            hmmResults_cor = hmm_utilities.HMMsegment(tumour_copy.copy(), None, dataType="ratios", 
+                                                        param=param, chrTrain=chrTrain, maxiter=50,
+                                                        estimateNormal=estimateNormal, estimatePloidy=estimatePloidy,
+                                                        estimateSubclone=estimateScPrevalence, verbose=True)
 
-            for s in range(numSamples):
-                iteration = hmmResults_cor["results"]["iter"]
-                pid = list(hmmResults_cor["cna"].keys())[s]
+            ########### CN correction ###################
+            iteration = hmmResults_cor["results"]["iter"]
 
-                # correct integer copy number based on estimated purity and ploidy
-                correctedResults = hmm_utilities.correctIntegerCN(cn = cp.deepcopy(hmmResults_cor["cna"][pid]),
-                                                    segs = cp.deepcopy(hmmResults_cor["results"]["segs"][s]), 
-                                                    purity = 1 - hmmResults_cor["results"]["n"][s, iteration], ploidy = hmmResults_cor["results"]["phi"][s, iteration],
-                                                    cellPrev = 1 - hmmResults_cor["results"]["sp"][s, iteration], 
-                                                    maxCNtoCorrect_autosomes = maxCN, maxCNtoCorrect_X = maxCN, minPurityToCorrect = 0.03, 
-                                                    gender = gender["gender"], chrs = chrs, correctHOMD = includeHOMD)
-                
-                hmmResults_cor["results"]["segs"][s] = correctedResults["segs"]
-                hmmResults_cor["cna"][pid] = correctedResults["cn"]
+            # correct integer copy number based on estimated purity and ploidy
+            correctedResults = hmm_utilities.correctIntegerCN(cn = hmmResults_cor["cna"].copy(),
+                                                segs = hmmResults_cor["results"]["segs"].copy(), 
+                                                purity = 1 - hmmResults_cor["results"]["n"][0][iteration], ploidy = hmmResults_cor["results"]["phi"][0][iteration],
+                                                cellPrev = 1 - hmmResults_cor["results"]["sp"][0][iteration], 
+                                                maxCNtoCorrect_autosomes = maxCN, maxCNtoCorrect_X = maxCN, minPurityToCorrect = 0.03, 
+                                                gender = gender["gender"] if gender is not None else None, chrs = chrs, correctHOMD = includeHOMD)
+            
+            hmmResults_cor["results"]["segs"] = correctedResults["segs"]
+            hmmResults_cor["cna"] = correctedResults["cn"]
 
-                ## convert full diploid solution (of chrs to train) to have 1.0 normal or 0.0 purity
-                ## check if there is an altered segment that has at least a minimum # of bins
-                segsS = hmmResults_cor["results"]["segs"][s]
-                segsS = segsS.loc[np.in1d(segsS.loc[:,"chrom"].values, chrTrain), :]
-                segAltInd = np.where(segsS["event"] != "NEUT")[0]
+            ## convert full diploid solution (of chrs to train) to have 1.0 normal or 0.0 purity
+            ## check if there is an altered segment that has at least a minimum # of bins
+            segsS = hmmResults_cor["results"]["segs"]
+            segsS = segsS.loc[chrTrain, :]
+            segAltInd = np.where(segsS.loc[:,"event"].values != "NEUT")[0]
 
-                maxBinLength = -np.inf
-                if np.sum(segAltInd) > 0:
-                    maxInd = np.argmax(segsS["end"].values[segAltInd] - segsS["start"].values[segAltInd] + 1)
-                    query = segsS.loc[segAltInd[maxInd],:]
-                    subject = tumour_copy[pid]
-                    hits = np.logical_and(subject.loc[:,"seqnames"].values == query.loc["chrom"],
-                                        np.logical_and(subject.loc[:,"start"].values <= query.loc["end"],
-                                        subject.loc[:,"end"].values >= query.loc["start"]))
-                    maxBinLength = np.sum(hits)
-                
-                ## check if there are proportion of total bins altered 
-                # if segment size smaller than minSegmentBins, but altFrac > altFracThreshold, then still estimate TF
-                cnaS = hmmResults_cor["cna"][pid]
-                altInd = cnaS.loc[np.in1d(cnaS.loc[:,"chr"].values, chrTrain), "event"].values == "NEUT"
-                altFrac = np.nansum(~altInd) / len(altInd)
-                if maxBinLength <= minSegmentBins and altFrac <= altFracThreshold:
-                    hmmResults_cor["results"]["n"][s, iteration] = 1.0
+            maxBinLength = -np.inf
+            if np.sum(segAltInd) > 0:
+                maxInd = np.argmax(segsS.ends()[segAltInd] - segsS.starts()[segAltInd] + 1)
+                query = segsS.index[segAltInd[maxInd]]
+                #query = query[query.unique_labels[0]]
+                #subject = tumour_copy[pid]
+                nhits = tumour_copy.nhits(query.start, query.end, query.label)
+                maxBinLength = nhits
+            
+            ## check if there are proportion of total bins altered 
+            # if segment size smaller than minSegmentBins, but altFrac > altFracThreshold, then still estimate TF
+            cnaS = hmmResults_cor["cna"]
+            altInd = cnaS.df.loc[np.in1d(cnaS.index.extract_labels(), chrTrain), "event"].values == "NEUT"
+            altFrac = np.nansum(~altInd) / len(altInd)
+            if maxBinLength <= minSegmentBins and altFrac <= altFracThreshold:
+                hmmResults_cor["results"]["n"][0][iteration] = 1.0
 
             iteration = hmmResults_cor["results"]["iter"]
             results[counter] = hmmResults_cor
             loglik.loc[counter, "loglik"] = hmmResults_cor["results"]["loglik"][iteration]
-            subClonalBinCount = pd.Series({i:hmmResults_cor["cna"][i].loc[:,"subclone_status"].sum() for i in hmmResults_cor["cna"]})
-            fracGenomeSub = subClonalBinCount / pd.Series({i:hmmResults_cor["cna"][i].shape[0] for i in hmmResults_cor["cna"]})
-            fracAltSub = subClonalBinCount / pd.Series({i:np.sum(hmmResults_cor["cna"][i].loc[:,"copy_number"] != 2) for i in hmmResults_cor["cna"]})
+            subClonalBinCount = pd.Series({0:hmmResults_cor["cna"].df.loc[:,"subclone_status"].sum()})
+            fracGenomeSub = subClonalBinCount / pd.Series({0:hmmResults_cor["cna"].shape[0]})
+            fracAltSub = subClonalBinCount / pd.Series({0:np.sum(hmmResults_cor["cna"].df.loc[:,"copy_number"].values != 2)})
             fracAltSub = pd.Series({i:0 if np.isnan(fracAltSub.loc[i]) else fracAltSub.loc[i] for i in fracAltSub.index.values})
             loglik.loc[counter, "Frac_genome_subclonal"] = ",".join(list(fracGenomeSub.values.astype(str)))
             loglik.loc[counter, "Frac_CNA_subclonal"] = ",".join(list(fracAltSub.values.astype(str)))

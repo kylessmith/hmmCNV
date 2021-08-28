@@ -11,23 +11,43 @@ import time
 
 def get2and3ComponentMixture(ct, ct_sc_status, n, sp, phi):
     """
+
+
+    Parameters
+    ----------
+
+    
+    Returns
+    -------
+
+
     """
 
-    S = len(n)
+    #S = len(n)
     cn = 2
     mu = np.tile(np.nan, ct.shape)
-    for s in range(S):
+    #for s in range(S):
         #subclonal 3 component
-        mu[ct_sc_status[:, s] == True, s] = (((1 - n[s]) * (1 - sp[s]) * ct[ct_sc_status[:, s] == True, s]) + 
-                    ((1 - n[s]) * sp[s] * cn) + (n[s] * cn)) / ((1 - n[s]) * phi[s] + n[s] * cn)
-        #clonal 2 component
-        mu[ct_sc_status[:,s] == False, s] = ((1 - n[s]) * ct[ct_sc_status[:, s] == False, s] + n[s] * cn) / ((1 - n[s]) * phi[s] + n[s] * cn)
+    mu[ct_sc_status == True] = (((1 - n) * (1 - sp) * ct[ct_sc_status == True]) + 
+                ((1 - n) * sp * cn) + (n * cn)) / ((1 - n) * phi + n * cn)
+    #clonal 2 component
+    mu[ct_sc_status == False] = ((1 - n) * ct[ct_sc_status == False] + n * cn) / ((1 - n) * phi + n * cn)
     
     return np.log(mu)
 
 
 def tdistPDF(x, mu, lambda_p, nu):
     """
+
+
+    Parameters
+    ----------
+        x : np.ndarrau
+    
+    Returns
+    -------
+
+
     """
 
     S = x.shape[1]
@@ -41,11 +61,28 @@ def tdistPDF(x, mu, lambda_p, nu):
         p = (gamma(nu / 2 + 0.5) / gamma(nu / 2)) * ((lambda_p / (np.pi * nu)) **(0.5)) * (1 + (lambda_p * (x - mu) **2) / nu) **(-0.5 * nu - 0.5)
     
     p[np.isnan(p)] = 1
+
+    #nu = np.repeat(nu, len(mu))
+    #p = (gamma(nu / 2 + 0.5) / gamma(nu / 2)) * ((lambda_p / (np.pi * nu)) **(0.5)) * (1 + (lambda_p * (x - mu) **2) / nu) **(-0.5 * nu - 0.5)
+    #p[np.isnan(p)] = 1
     
     return p
 
 
 def dirichletpdf(x, alpha):
+    """
+
+
+    Parameters
+    ----------
+
+    
+    Returns
+    -------
+
+
+    """
+
     if (x < 0).any():
         return 0
     
@@ -58,6 +95,19 @@ def dirichletpdf(x, alpha):
 
 
 def dirichletpdflog(x, k):
+    """
+
+
+    Parameters
+    ----------
+
+    
+    Returns
+    -------
+
+
+    """
+
     c = gammaln(np.nansum(k)) - np.nansum(gammaln(k))  #normalizing constant
     l = np.nansum((k - 1) * np.log(x))  #likelihood
     y = c + l
@@ -66,6 +116,19 @@ def dirichletpdflog(x, k):
 
 
 def gammapdflog(x, a, b): #rate and scale parameterization
+    """
+
+
+    Parameters
+    ----------
+
+    
+    Returns
+    -------
+
+
+    """
+
     c = a * np.log(b) - gammaln(a)  # normalizing constant  
     l = (a - 1) * np.log(x) + (-b * x)  #likelihood  
     y = c + l
@@ -74,6 +137,19 @@ def gammapdflog(x, a, b): #rate and scale parameterization
 
 
 def betapdflog(x, a, b):
+    """
+
+
+    Parameters
+    ----------
+
+    
+    Returns
+    -------
+
+
+    """
+
     y = -betaln(a, b) + (a - 1) * np.log(x) + (b - 1) * np.log(1 - x)
 
     return y
@@ -81,6 +157,16 @@ def betapdflog(x, a, b):
 
 def estimateMixWeightsParamMap(rho, kappa):
     """
+
+
+    Parameters
+    ----------
+
+    
+    Returns
+    -------
+
+
     """
 
     K = rho.shape[0]
@@ -92,6 +178,15 @@ def estimateMixWeightsParamMap(rho, kappa):
 def stLikelihood(n, sp, phi, lambda_p, params, D, rho):
     """
     Student's t likelihood function
+
+    Parameters
+    ----------
+
+    
+    Returns
+    -------
+
+
     """
 
     KS = rho.shape[0]
@@ -103,7 +198,6 @@ def stLikelihood(n, sp, phi, lambda_p, params, D, rho):
     for ks in range(KS):
         probs = np.log(tdistPDF(D.values, mus[ks,:], lambdaKS[ks,:], params["nu"]))    
         # multiply across samples for each data point to get joint likelihood.
-        #l = rho[ks, ] %*% rowSums(as.data.frame(probs))
         l = np.dot(rho[ks,:], probs)
         lik = lik + l
     
@@ -115,6 +209,16 @@ def completeLikelihoodFun(x, pType, n, sp, phi, lambda_p, piG, A, params, D, rho
                                   estimatePrecision = True, estimateTransition = False,
                                   estimateInitDist = True, estimateSubclone = True):
     """
+
+
+    Parameters
+    ----------
+
+    
+    Returns
+    -------
+
+
     """
     
     KS = rho.shape[0]
@@ -143,11 +247,9 @@ def completeLikelihoodFun(x, pType, n, sp, phi, lambda_p, piG, A, params, D, rho
                         estimateInitDist = estimateInitDist, estimateSubclone = estimateSubclone)
     ## likelihood terms ##
     likObs = stLikelihood(n, sp, phi, lambda_p, params, D, rho)
-    #likInit = rho[:, 1] %*% np.log(piG)
     likInit = np.dot(rho[:, 1], np.log(piG))
     likTxn = 0
     for ks in range(KS):
-        #likTxn = likTxn + Zcounts[ks,:] %*% np.log(A[ks,:])
         likTxn = likTxn + np.dot(Zcounts[ks,:], np.log(A[ks,:]))
 
     ## sum together ##
@@ -164,6 +266,16 @@ def priorProbs(n, sp, phi, lambda_p, piG, A, params,
                 estimatePrecision = True, estimateTransition = True,
                 estimateInitDist = True, estimateSubclone = True):
     """
+
+
+    Parameters
+    ----------
+
+    
+    Returns
+    -------
+
+
     """
 
     S = params["numberSamples"]
@@ -216,6 +328,16 @@ def estimateParamsMap(D, n_prev, sp_prev, phi_prev, lambda_prev, pi_prev, A_prev
                               estimateTransition = True, estimateSubclone = True,
                               verbose = True):
     """
+
+
+    Parameters
+    ----------
+
+    
+    Returns
+    -------
+
+
     """
 
     KS = rho.shape[0]
@@ -292,6 +414,16 @@ def runEM(copy, chroms, chrTrain, param, maxiter, verbose=True,
             estimateTransition=True, estimateInitDist=True, estimateSubclone=True,
             likChangeConvergence=1e-3):
     """
+
+
+    Parameters
+    ----------
+        copy : pandas.DataFrame
+    
+    Returns
+    -------
+
+
     """
 
     if copy.shape[0] != len(chroms) or copy.shape[0] != len(chrTrain):
@@ -355,7 +487,7 @@ def runEM(copy, chroms, chrTrain, param, maxiter, verbose=True,
 
     loglik[i] = -np.inf
 
-    while converged == False and i < maxiter:
+    while converged == False and i < maxiter-1:
         ptm = time.perf_counter()
 
         i = i + 1
@@ -428,11 +560,10 @@ def runEM(copy, chroms, chrTrain, param, maxiter, verbose=True,
         
     if converged:
         # Perform one last round of E-step to get latest responsibilities
-        #E-step
+        # E-step
         if verbose: print("runEM iter", i-1 ,": Re-calculating responsibilties from converged parameters.")
         for j in range(len(chrsI)):
             I = chrsI[j]
-            #output = forward_backward.forward_backward(piG[:, i], A, py[:, I])
             output = forward_backward(piG[:, i], A, py[:, I])
             rho[:, I] = output["rho"]
     
