@@ -13,7 +13,9 @@ build_type = "optimized"
 
 # Descriptions of package
 SHORTDESC = "Python package for Copy-Number Variation calling"
-DESC = """A python package for implementing an HMM for CNV calling."""
+#DESC = """A python package for implementing an HMM for CNV calling."""
+with open("README.md", "r") as fh:
+    long_description = fh.read()
 
 # Directories (relative to the top-level directory where setup.py resides) in which to look for data files.
 datadirs  = ("tests", "data")
@@ -193,7 +195,8 @@ setup(
     author_email = "kyle.smith@stjude.org",
     url = "https://github.com/kylessmtih/hmmCNV",
     description = SHORTDESC,
-    long_description = DESC,
+    long_description = long_description,
+    long_description_content_type = "text/markdown",
     # CHANGE THIS
     license = "GPL2",
     # free-form text field
@@ -202,7 +205,6 @@ setup(
                     "Environment :: Console",
                     "Intended Audience :: Developers",
                     "Intended Audience :: Science/Research",
-                    "License :: GPL2", 
                     "Operating System :: POSIX :: Linux",
                     "Programming Language :: Cython",
                     "Programming Language :: Python",
@@ -213,8 +215,8 @@ setup(
                     "Topic :: Software Development :: Libraries",
                     "Topic :: Software Development :: Libraries :: Python Modules"
                   ],
-    setup_requires = ["cython", "numpy","pandas"],
-    install_requires = ["numpy","cython","pandas"],
+    setup_requires = ["cython", "numpy","pandas","ailist","intervalframe","scipy"],
+    install_requires = ["numpy","cython","pandas","ailist"],
     provides = ["hmmCNV"],
     keywords = ["next generation sequencing CNV copy number hmm"],
     ext_modules = my_ext_modules,

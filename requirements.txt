@@ -1,0 +1,7 @@
+numpy>=1.0.0
+pandas>=1.0.0
+cython>=0.29.0
+pytest>=5.4.0
+ailist>=1.0.0
+intervalframe>=1.0.0
+scipy
