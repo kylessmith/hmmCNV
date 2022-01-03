@@ -205,7 +205,7 @@ def hmmCNV(tumour_copy, normal = [0.2, 0.5, 0.75], ploidy = [1, 2, 3], scStates 
             hmmResults_cor = hmm_utilities.HMMsegment(tumour_copy.copy(), None, dataType="ratios", 
                                                         param=param, chrTrain=chrTrain, maxiter=50,
                                                         estimateNormal=estimateNormal, estimatePloidy=estimatePloidy,
-                                                        estimateSubclone=estimateScPrevalence, verbose=True)
+                                                        estimateSubclone=estimateScPrevalence, verbose=verbose)
 
             ########### CN correction ###################
             iteration = hmmResults_cor["results"]["iter"]
@@ -213,10 +213,13 @@ def hmmCNV(tumour_copy, normal = [0.2, 0.5, 0.75], ploidy = [1, 2, 3], scStates 
             # correct integer copy number based on estimated purity and ploidy
             correctedResults = hmm_utilities.correctIntegerCN(cn = hmmResults_cor["cna"].copy(),
                                                 segs = hmmResults_cor["results"]["segs"].copy(), 
-                                                purity = 1 - hmmResults_cor["results"]["n"][0][iteration], ploidy = hmmResults_cor["results"]["phi"][0][iteration],
+                                                purity = 1 - hmmResults_cor["results"]["n"][0][iteration],
+                                                ploidy = hmmResults_cor["results"]["phi"][0][iteration],
                                                 cellPrev = 1 - hmmResults_cor["results"]["sp"][0][iteration], 
-                                                maxCNtoCorrect_autosomes = maxCN, maxCNtoCorrect_X = maxCN, minPurityToCorrect = 0.03, 
-                                                gender = gender["gender"] if gender is not None else None, chrs = chrs, correctHOMD = includeHOMD)
+                                                maxCNtoCorrect_autosomes = maxCN, maxCNtoCorrect_X = maxCN,
+                                                minPurityToCorrect = 0.03, 
+                                                gender = gender["gender"] if gender is not None else None,
+                                                chrs = chrs,correctHOMD = includeHOMD)
             
             hmmResults_cor["results"]["segs"] = correctedResults["segs"]
             hmmResults_cor["cna"] = correctedResults["cn"]

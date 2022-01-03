@@ -172,7 +172,7 @@ def getDefaultParameters(logR, maxCN = 5, ct_sc = None, ploidy = 2, e = 0.999999
     return param
 
 
-def runViterbi(convergedParams, chroms):
+def runViterbi(convergedParams, chroms, verbose=False):
     """
 
 
@@ -186,7 +186,7 @@ def runViterbi(convergedParams, chroms):
 
     """
 
-    print("runViterbi: Segmenting and classifying")
+    if verbose: print("runViterbi: Segmenting and classifying")
     
     indexes = np.unique(chroms, return_index=True)[1]
     chrs = np.array([chroms[index] for index in sorted(indexes)])
@@ -302,7 +302,7 @@ def segment_data(x, states, convergedParams):
 def HMMsegment(x, validInd=None, dataType="ratios", param=None, 
                chrTrain=np.arange(22).astype(str), maxiter=50, estimateNormal=True, estimatePloidy=True, 
                estimatePrecision=True, estimateSubclone=True, estimateTransition=True,
-               estimateInitDist=True, logTransform=False, verbose=True):
+               estimateInitDist=True, logTransform=False, verbose=False):
     """
 
 
@@ -370,7 +370,7 @@ def HMMsegment(x, validInd=None, dataType="ratios", param=None,
                                         estimateSubclone=estimateSubclone, estimatePrecision=estimatePrecision, 
                                         estimateTransition=estimateTransition, estimateInitDist=estimateInitDist)
     
-    viterbiResults = runViterbi(convergedParams, chroms)
+    viterbiResults = runViterbi(convergedParams, chroms, verbose=verbose)
 
     # Segment data based on called states
     segs = segment_data(x, viterbiResults["states"], convergedParams)
@@ -437,9 +437,12 @@ def logRbasedCN(x, purity, ploidyT, cellPrev=np.nan, cn = 2):
     ct = (2**x 
             * (cn * (1 - purity) + purity * ploidyT * (cn / 2)) 
             - (cn * (1 - purity)) 
-            - (cn * purity * (1 - cellPrev))) 
+            - (cn * purity * (1 - cellPrev)))
     ct = ct / (purity * cellPrev)
     ct = np.maximum(ct, 1/2**6)
+
+    # Replace inf with 0
+    ct[ct == np.inf] = 0
     
     return ct
 

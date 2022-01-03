@@ -69,7 +69,7 @@ def tdistPDF(x, mu, lambda_p, nu):
     return p
 
 
-def dirichletpdf(x, alpha):
+def dirichletpdf(x, alpha, verbose=False):
     """
 
 
@@ -87,7 +87,7 @@ def dirichletpdf(x, alpha):
         return 0
     
     if np.abs(np.sum(x) - 1) > 1e-3:
-        print("Dirichlet PDF: probabilities do not sum to 1")
+        if verobose: print("Dirichlet PDF: probabilities do not sum to 1")
         return 0
     
     p = np.exp(gammaln(np.sum(alpha)) - np.sum(gammaln(alpha))) * np.prod(x **(alpha - 1))
@@ -409,7 +409,7 @@ def estimateParamsMap(D, n_prev, sp_prev, phi_prev, lambda_prev, pi_prev, A_prev
 
 
 
-def runEM(copy, chroms, chrTrain, param, maxiter, verbose=True, 
+def runEM(copy, chroms, chrTrain, param, maxiter, verbose=False, 
             estimateNormal=True, estimatePloidy=True, estimatePrecision=True,
             estimateTransition=True, estimateInitDist=True, estimateSubclone=True,
             likChangeConvergence=1e-3):
