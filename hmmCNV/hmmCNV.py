@@ -6,7 +6,8 @@ import time
 from intervalframe import IntervalFrame
 
 
-def get_seq_info(genomeBuild = "hg19", genomeStyle = "NCBI"):
+def get_seq_info(genomeBuild = "hg19",
+                 genomeStyle = "NCBI"):
     """
     """
 
@@ -57,15 +58,38 @@ def wigToSeries(wig_fn):
     return wig_results, bin_size
 
 
-def hmmCNV(tumour_copy, normal = [0.2, 0.5, 0.75], ploidy = [1, 2, 3], scStates = None,
-            lambda_p = None, lambdaScaleHyperParam = 3, estimateNormal = True, estimatePloidy = True,
-            estimateScPrevalence = True, maxFracCNASubclone = 0.7, maxFracGenomeSubclone = 0.5,
-            minSegmentBins = 50, altFracThreshold = 0.05, coverage = None, maxCN = 7, txnE = 0.9999999,
-            txnStrength = 1e7, normalizeMaleX = True, includeHOMD = False, fracReadsInChrYForMale = 0.001,
-            chrXMedianForMale = -0.1, outDir = "./", libdir = None, plotFileType = "pdf", plotYLim = (-2,2),
-            gender = None, genomeBuild = "hg19", genomeStyle = "UCSC",
-            chrs = np.append(np.arange(1,23).astype(str), "X"), chrTrain = np.arange(1, 23).astype(str),
-            chrNormalize = np.arange(1, 23).astype(str), verbose=False):
+def hmmCNV(tumour_copy,
+           normal = [0.2, 0.5, 0.75],
+           ploidy = [1, 2, 3],
+           scStates = None,
+           lambda_p = None,
+           lambdaScaleHyperParam = 3,
+           estimateNormal = True,
+           estimatePloidy = True,
+           estimateScPrevalence = True,
+           maxFracCNASubclone = 0.7,
+           maxFracGenomeSubclone = 0.5,
+           minSegmentBins = 50,
+           altFracThreshold = 0.05,
+           coverage = None,
+           maxCN = 7,
+           txnE = 0.9999999,
+           txnStrength = 1e7,
+           normalizeMaleX = True,
+           includeHOMD = False,
+           fracReadsInChrYForMale = 0.001,
+           chrXMedianForMale = -0.1,
+           outDir = "./",
+           libdir = None,
+           plotFileType = "pdf",
+           plotYLim = (-2,2),
+           gender = None,
+           genomeBuild = "hg19",
+           genomeStyle = "UCSC",
+           chrs = np.append(np.arange(1,23).astype(str), "X"),
+           chrTrain = np.arange(1, 23).astype(str),
+           chrNormalize = np.arange(1, 23).astype(str),
+           verbose=False):
     """
     Run ichor HMM copy algorithm
 
@@ -216,10 +240,12 @@ def hmmCNV(tumour_copy, normal = [0.2, 0.5, 0.75], ploidy = [1, 2, 3], scStates 
                                                 purity = 1 - hmmResults_cor["results"]["n"][0][iteration],
                                                 ploidy = hmmResults_cor["results"]["phi"][0][iteration],
                                                 cellPrev = 1 - hmmResults_cor["results"]["sp"][0][iteration], 
-                                                maxCNtoCorrect_autosomes = maxCN, maxCNtoCorrect_X = maxCN,
+                                                maxCNtoCorrect_autosomes = maxCN,
+                                                maxCNtoCorrect_X = maxCN,
                                                 minPurityToCorrect = 0.03, 
                                                 gender = gender["gender"] if gender is not None else None,
-                                                chrs = chrs,correctHOMD = includeHOMD)
+                                                chrs = chrs,
+                                                correctHOMD = includeHOMD)
             
             hmmResults_cor["results"]["segs"] = correctedResults["segs"]
             hmmResults_cor["cna"] = correctedResults["cn"]
@@ -242,7 +268,7 @@ def hmmCNV(tumour_copy, normal = [0.2, 0.5, 0.75], ploidy = [1, 2, 3], scStates 
             ## check if there are proportion of total bins altered 
             # if segment size smaller than minSegmentBins, but altFrac > altFracThreshold, then still estimate TF
             cnaS = hmmResults_cor["cna"]
-            altInd = cnaS.df.loc[np.in1d(cnaS.index.extract_labels(), chrTrain), "event"].values == "NEUT"
+            altInd = cnaS.df.loc[np.in1d(cnaS.index.labels, chrTrain), "event"].values == "NEUT"
             altFrac = np.nansum(~altInd) / len(altInd)
             if maxBinLength <= minSegmentBins and altFrac <= altFracThreshold:
                 hmmResults_cor["results"]["n"][0][iteration] = 1.0

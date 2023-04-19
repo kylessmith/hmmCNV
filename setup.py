@@ -222,6 +222,7 @@ setup(
     ext_modules = my_ext_modules,
     packages = ["hmmCNV", "hmmCNV.hmm"],
     package_data={'hmmCNV': ['*.pxd', '*.pyx', '*.c', '*.h']},
+    include_package_data=True,
     # Disable zip_safe
     zip_safe = False,
     # Custom data files not inside a Python package

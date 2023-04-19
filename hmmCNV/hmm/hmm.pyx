@@ -174,8 +174,10 @@ def viterbi(np.ndarray[double, ndim=1, mode="fortran"] piZ,
     
     cdef double[:,:] changes_data = np.zeros((4, T), dtype=np.double, order="F")
     changesCounter = 0
-    ind = np.unravel_index(changesCounter + 0 * T, (4,T), order="F")
-    changes_data[ind[0], ind[1]] = 0
+    cdef int ind1
+    cdef int ind2
+    ind1, ind2 = np.unravel_index(changesCounter + 0 * T, (4,T), order="F")
+    changes_data[ind1, ind2] = 0
     ind = np.unravel_index(changesCounter + 1 * T, (4,T), order="F")
     changes_data[ind[0], ind[1]] = 0 # overwritten
     ind = np.unravel_index(changesCounter + 2 * T, (4,T), order="F")

@@ -343,7 +343,7 @@ def HMMsegment(x, validInd=None, dataType="ratios", param=None,
     """
     
     # Find chromosomes present
-    chroms = x.index.extract_labels()
+    chroms = x.index.labels
 
     # Setup columns
     dataMat = x.df.loc[:,dataType].to_frame()
@@ -382,7 +382,7 @@ def HMMsegment(x, validInd=None, dataType="ratios", param=None,
     copyNumber = param["jointCNstates"].values[viterbiResults["states"]]
     subclone_status = param["jointSCstatus"].values[viterbiResults["states"]]
 
-    chroms = x.index.extract_labels()
+    chroms = x.index.labels
 
     #cnaList = pd.DataFrame([chroms], index=["chr"]).T
     #cnaList.loc[:,"start"] = x.starts()
@@ -506,7 +506,7 @@ def correctIntegerCN(cn, segs, purity, ploidy, cellPrev, callColName = "event", 
                                              np.logical_or(segs.loc[:,"copy_number"].values == 0,
                                                            segs.loc[:,"logR_Copy_Number"].values == 1/2**6)))[0]
             segs.df.loc[ind_cn,"Corrected_Copy_Number"] = np.round(segs.df.loc[:,"logR_Copy_Number"].values[ind_cn])
-            segs.df.loc[ind_cn,"Corrected_Call"] = names[segs.df.loc[:,"Corrected_Copy_Number"].vaues[ind_cn] + 1]
+            segs.df.loc[ind_cn,"Corrected_Call"] = names[segs.df.loc[:,"Corrected_Copy_Number"].values[ind_cn] + 1]
             ind_change = np.append(ind_change, ind_cn)
         
         # Re-adjust chrX copy number for males (females already handled above)
@@ -537,13 +537,18 @@ def correctIntegerCN(cn, segs, purity, ploidy, cellPrev, callColName = "event", 
     for i in ind_change:
         fields = segs.iloc[i,:]
 
-        overlaps = cn.index.has_hit(fields.index[0].start, fields.index[0].end, fields.index[0].label)
-        #overlaps = np.logical_and(cn.loc[:,"chr"].values == fields.loc["chrom"],
-        #                          np.logical_and(cn.loc[:,"start"].values <= fields.loc["end"],
-        #                          cn.loc[:,"end"].values >= fields.loc["start"]))
-        cn.df.loc[overlaps,"Corrected_Copy_Number"] = fields.df.loc[:,"Corrected_Copy_Number"]
-        cn.df.loc[overlaps,"Corrected_Call"] = fields.df.loc[:,"Corrected_Call"]
-        hits = np.append(hits, np.where(overlaps)[0])
+        overlaps = cn.index.intersect(fields.index[0].start,
+                                      fields.index[0].end,
+                                      fields.index[0].label,
+                                      return_intervals=False,
+                                      return_index=True)
+        ##overlaps = np.logical_and(cn.loc[:,"chr"].values == fields.loc["chrom"],
+        ##                          np.logical_and(cn.loc[:,"start"].values <= fields.loc["end"],
+        ##                          cn.loc[:,"end"].values >= fields.loc["start"]))
+        #print(overlaps)
+        cn.df.loc[:,"Corrected_Copy_Number"].values[overlaps] = fields.df.loc[:,"Corrected_Copy_Number"].values
+        cn.df.loc[:,"Corrected_Call"].values[overlaps] = fields.df.loc[:,"Corrected_Call"].values
+        hits = np.append(hits, overlaps)
 
     # 4) correct bins that are missed as high level amplifications
     ind_cn = np.where(np.logical_or(cn.df.loc[:,"copy_number"].values >= maxCNtoCorrect_autosomes,

@@ -348,7 +348,7 @@ def estimateParamsMap(D, n_prev, sp_prev, phi_prev, lambda_prev, pi_prev, A_prev
     intervalNormal = (1e-6, 1 - 1e-6)
     intervalSubclone = (1e-6, 1 - 1e-6)
     intervalPhi = (np.finfo(np.double).eps, 10)
-    intervalLambda = (1e-5, 1e4)
+    intervalLambda = (1e-10, 1e4)
 
     # initialize params to be estimated
     n_hat = n_prev
@@ -474,7 +474,8 @@ def runEM(copy, chroms, chrTrain, param, maxiter, verbose=False,
 
     # Likelihood #
     for ks in range(KS):
-        probs = tdistPDF(copy.values, mus[i][ks,:], lambdasKS.iloc[ks,:], param["nu"])
+        #probs = tdistPDF(copy.values, mus[i][ks,:], lambdasKS.iloc[ks,:], param["nu"])
+        probs = tdistPDF(copy.values, mus[i][ks,:], lambdasKS.values[ks,:], param["nu"])
         if probs.ndim > 1:
             py[ks,:] = probs.apply(prod, axis=0) # multiply across samples for each data point to get joint likelihood.
         else:
@@ -533,7 +534,8 @@ def runEM(copy, chroms, chrTrain, param, maxiter, verbose=False,
         lambdasKS = pd.DataFrame(lambdas[i])
         mus[i] = get2and3ComponentMixture(param["jointCNstates"].values, param["jointSCstatus"].values, n[:, i], sp[:, i], phi[:, i])
         for ks in range(KS):
-            probs = tdistPDF(copy.values, mus[i][ks,:], lambdasKS.iloc[ks,:], param["nu"])
+            #probs = tdistPDF(copy.values, mus[i][ks,:], lambdasKS.iloc[ks,:], param["nu"])
+            probs = tdistPDF(copy.values, mus[i][ks,:], lambdasKS.values[ks,:], param["nu"])
             if probs.ndim > 1:
                 py[ks,:] = probs.apply(prod, axis=0) # multiply across samples for each data point to get joint likelihood.
             else:
