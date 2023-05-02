@@ -377,33 +377,16 @@ def HMMsegment(x, validInd=None, dataType="ratios", param=None,
     
     names = np.array(["HOMD","HETD","NEUT","GAIN","AMP","HLAMP"] + ["HLAMP"+str(i) for i in range(2,25)])
 
-    #cnaList = {}
-    #pid = list(x.keys())[i]
     copyNumber = param["jointCNstates"].values[viterbiResults["states"]]
     subclone_status = param["jointSCstatus"].values[viterbiResults["states"]]
 
     chroms = x.index.labels
 
-    #cnaList = pd.DataFrame([chroms], index=["chr"]).T
-    #cnaList.loc[:,"start"] = x.starts()
-    #cnaList.loc[:,"end"] = x.ends()
     cnaList = IntervalFrame.from_array(x.starts(), x.ends(), labels=chroms)
     cnaList.loc[:,"copy_number"] = copyNumber
     cnaList.loc[:,"event"] = names[copyNumber]
     cnaList.loc[:,"logR"] = np.log2(np.exp(dataMat.values))
     cnaList.loc[:,"subclone_status"] = subclone_status
-
-    ## order by chromosome ##
-    #indexes = np.sort(np.unique(x[pid].loc[:,"seqnames"].values, return_index=True)[1])
-    #chrOrder_chroms = x.index.unique_labels
-    #chrOrder = np.zeros(len(chroms), dtype=int)
-    #shift = 0
-    #for c in chrOrder_chroms:
-    #    selected = np.where(chroms == c)[0]
-    #    chrOrder[shift:shift+len(selected)] = selected
-    #    shift += len(selected)
-
-    #cnaList = cnaList.loc[chrOrder_chroms,:]
 
     ## segment mean loge -> log2
     segs.df["median"] = np.log2(np.exp(segs.df["median"].values))
@@ -542,10 +525,7 @@ def correctIntegerCN(cn, segs, purity, ploidy, cellPrev, callColName = "event", 
                                       fields.index[0].label,
                                       return_intervals=False,
                                       return_index=True)
-        ##overlaps = np.logical_and(cn.loc[:,"chr"].values == fields.loc["chrom"],
-        ##                          np.logical_and(cn.loc[:,"start"].values <= fields.loc["end"],
-        ##                          cn.loc[:,"end"].values >= fields.loc["start"]))
-        #print(overlaps)
+
         cn.df.loc[:,"Corrected_Copy_Number"].values[overlaps] = fields.df.loc[:,"Corrected_Copy_Number"].values
         cn.df.loc[:,"Corrected_Call"].values[overlaps] = fields.df.loc[:,"Corrected_Call"].values
         hits = np.append(hits, overlaps)
