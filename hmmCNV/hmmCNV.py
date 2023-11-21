@@ -258,7 +258,7 @@ def hmmCNV(tumour_copy,
 
             maxBinLength = -np.inf
             if np.sum(segAltInd) > 0:
-                maxInd = np.argmax(segsS.ends()[segAltInd] - segsS.starts()[segAltInd] + 1)
+                maxInd = np.argmax(segsS.ends[segAltInd] - segsS.starts[segAltInd] + 1)
                 query = segsS.index[segAltInd[maxInd]]
                 #query = query[query.unique_labels[0]]
                 #subject = tumour_copy[pid]

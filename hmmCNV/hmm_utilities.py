@@ -275,7 +275,7 @@ def segment_data(x, states, convergedParams):
         chrom = chroms[i]
         #sample_intervals[chrom] = LabeledIntervalArray()
         chrom_selected = x.loc[chrom,:]
-        chrom_positions = chrom_selected.starts()
+        chrom_positions = chrom_selected.starts
         chrom_values = chrom_selected.df["ratios"].values
         chrom_states = states[x.index.get_locs([chrom])]
         chrom_segList = []
@@ -382,7 +382,7 @@ def HMMsegment(x, validInd=None, dataType="ratios", param=None,
 
     chroms = x.index.labels
 
-    cnaList = IntervalFrame.from_array(x.starts(), x.ends(), labels=chroms)
+    cnaList = IntervalFrame.from_array(x.starts, x.ends, labels=chroms)
     cnaList.loc[:,"copy_number"] = copyNumber
     cnaList.loc[:,"event"] = names[copyNumber]
     cnaList.loc[:,"logR"] = np.log2(np.exp(dataMat.values))
@@ -485,7 +485,7 @@ def correctIntegerCN(cn, segs, purity, ploidy, cellPrev, callColName = "event", 
 
         # ichorCNA calls adjust for HOMD
         if correctHOMD:
-            ind_cn = np.where(np.logical_and(np.in1d(segs.index.extract_labels(), chrs),
+            ind_cn = np.where(np.logical_and(np.in1d(segs.index.labels, chrs),
                                              np.logical_or(segs.loc[:,"copy_number"].values == 0,
                                                            segs.loc[:,"logR_Copy_Number"].values == 1/2**6)))[0]
             segs.df.loc[ind_cn,"Corrected_Copy_Number"] = np.round(segs.df.loc[:,"logR_Copy_Number"].values[ind_cn])
@@ -494,7 +494,7 @@ def correctIntegerCN(cn, segs, purity, ploidy, cellPrev, callColName = "event", 
         
         # Re-adjust chrX copy number for males (females already handled above)
         if gender == "male" and len(chrXStr) > 0:
-            ind_cn = np.where(np.logical_and(segs.index.extract_labels() == chrXStr,
+            ind_cn = np.where(np.logical_and(segs.index.labels == chrXStr,
                                             np.logical_or(segs.df.loc[:,"copy_number"].values >= maxCNtoCorrect_X,
                                                           segs.df.loc[:,"logR_Copy_Number"].values >= maxCNtoCorrect_X * 1.2)))[0]
             segs.df.loc[ind_cn,"Corrected_Copy_Number"] = np.round(segs.df.loc[:,"logR_Copy_Number"].values[ind_cn]).astype(int)

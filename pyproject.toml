@@ -1,0 +1,61 @@
+[tool.poetry]
+name = "hmmCNV"
+version = "1.1.3"
+description = "Python package for Copy-Number Variation calling"
+authors = ["Kyle S. Smith <kyle.smith@stjude.org>"]
+maintainers = ["Kyle S. Smith <kyle.smith@stjude.org>"]
+repository = "https://github.com/kylessmith/hmmCNV"
+documentation = "https://www.biosciencestack.com/static/hmmCNV/docs/index.html"
+keywords = ["variant", "CNV", "copy", "number"]
+readme = 'README.md'
+license = "GPL-2.0-or-later"
+classifiers = [ "Development Status :: 4 - Beta",
+                    "Environment :: Console",
+                    "Intended Audience :: Developers",
+                    "Intended Audience :: Science/Research",
+                    "Operating System :: POSIX :: Linux",
+                    "Programming Language :: Cython",
+                    "Programming Language :: Python",
+                    "Programming Language :: Python :: 3",
+                    "Programming Language :: Python :: 3.6",
+                    "Topic :: Scientific/Engineering",
+                    "Topic :: Scientific/Engineering :: Mathematics",
+                    "Topic :: Software Development :: Libraries",
+                    "Topic :: Software Development :: Libraries :: Python Modules",
+                    "Topic :: Scientific/Engineering :: Bio-Informatics"
+                  ]
+packages = [{ include = "hmmCNV" }]
+include = ["hmmCNV/hmm/*.pyx", "hmmCNV/hmm/*.pxd", "hmmCNV/hmm/*.h", "hmmCNV/hmm/*.c", "hmmCNV/**/*.so"]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+numpy = "^1.23.5"
+cython = "^0.29.32"
+pandas = "^1.5.2"
+ailist = "^2.1.0"
+linear_segment = "^1.1.0"
+intervalframe = "^1.1.3"
+
+[tool.poetry.dev-dependencies]
+pytest = "^5.2"
+
+[build-system]
+requires = ["poetry-core>=1.0.0",
+            "cython>=0.29.32",
+            "numpy>=1.23.5",
+            "pandas>=1.5.2",
+            "setuptools>=65.5.0",
+            "ailist>=2.1.0",]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.build]
+generate-setup-file = false
+script = "build.py"
+
+[tool.cibuildwheel]
+skip = "cp36-* cp37-* cp38-* cp39-* pp37-* pp38-* *-manylinux_i686 *_ppc64le *_s390x *-musllinux*"
+build-verbosity = "3"
+
+[tool.cython-lint]
+max-line-length = 100
+ignore = ['W191','E265','E303','E101','E128']
