@@ -448,7 +448,7 @@ def correctIntegerCN(cn, segs, purity, ploidy, cellPrev, callColName = "event", 
 
     """
 
-    names = np.array(["HOMD","HETD","NEUT","GAIN","AMP","HLAMP"] + ["HLAMP"+str(i) for i in range(2,3000)] + ["NA"])
+    names = np.array(["HOMD","HETD","NEUT","GAIN","AMP","HLAMP"] + ["HLAMP"+str(i) for i in range(2,100000)] + ["NA"])
 
     ## set up chromosome style
     autosomeStr = np.array([c for c in chrs if "X" not in c and "Y" not in c])

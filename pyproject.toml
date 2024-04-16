@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "hmmCNV"
-version = "1.1.4"
+version = "1.1.5"
 description = "Python package for Copy-Number Variation calling"
 authors = ["Kyle S. Smith <kyle.smith@stjude.org>"]
 maintainers = ["Kyle S. Smith <kyle.smith@stjude.org>"]
@@ -30,22 +30,22 @@ include = ["hmmCNV/hmm/*.pyx", "hmmCNV/hmm/*.pxd", "hmmCNV/hmm/*.h", "hmmCNV/hmm
 [tool.poetry.dependencies]
 python = "^3.10"
 numpy = "^1.23.5"
-cython = "^0.29.32"
-pandas = "^1.5.2"
-ailist = "^2.1.0"
-linear_segment = "^1.1.0"
-intervalframe = "^1.1.3"
+cython = "^3.0.0"
+pandas = "^2.0.0"
+ailist = "^2.1.3"
+linear_segment = "^1.1.2"
+intervalframe = "^1.1.6"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"
 
 [build-system]
 requires = ["poetry-core>=1.0.0",
-            "cython>=0.29.32",
+            "cython>=3.0.0",
             "numpy>=1.23.5",
-            "pandas>=1.5.2",
+            "pandas>=2.0.0",
             "setuptools>=65.5.0",
-            "ailist>=2.1.0",]
+            "ailist>=2.1.3",]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.build]
